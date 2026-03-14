@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Song Uploader Demo</title>
+<style>
+/* --- Global Styles --- */
+body { margin:0; font-family:'Roboto',sans-serif; background:#f9f9f9; color:#202020; }
+h1,h2{ font-weight:500; }
+label{ font-weight:500; color:#444; }
+
+.app-container{ display:flex; height:100vh; }
+
+/* --- Sidebar --- */
+.sidebar { width:250px; background:#181818; color:white; padding:20px; box-shadow:2px 0 8px rgba(0,0,0,0.1); transition:width 0.3s; }
+.sidebar h2{ margin-top:0; }
+.sidebar ul{ list-style:none; padding:0; }
+.sidebar li{ padding:10px 0; cursor:pointer; }
+.sidebar li:hover{ background:#333; }
+.collapse-btn{ background:none; border:none; color:white; font-size:20px; cursor:pointer; }
+.sidebar.collapsed{ width:60px; }
+.sidebar.collapsed h2, .sidebar.collapsed nav ul li{ display:none; }
+
+/* --- Main Content --- */
+.main-content{ flex:1; display:flex; flex-direction:column; overflow-y:auto; scroll-behavior:smooth; }
+.top-bar{ display:flex; justify-content:space-between; align-items:center; padding:15px 30px; background:#202020; color:white; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.top-bar .user-avatar{ background:#555; color:white; padding:5px 10px; border-radius:50%; }
+
+/* --- Upload Section --- */
+.upload-section{ padding:30px; flex:1; display:flex; gap:20px; }
+.card{ background:#fff; border-radius:8px; padding:25px; box-shadow:0 4px 12px rgba(0,0,0,0.1); transition:box-shadow 0.3s; flex:1; }
+.card:hover{ box-shadow:0 6px 18px rgba(0,0,0,0.15); }
+form{ display:flex; flex-direction:column; gap:15px; }
+input, textarea{ padding:10px; border:1px solid #ccc; border-radius:4px; background:#fff; transition:border-color 0.3s, box-shadow 0.3s; }
+input:focus, textarea:focus{ outline:none; border-color:#FF0000; box-shadow:0 0 5px rgba(255,0,0,0.5); }
+button{ padding:12px; border:none; border-radius:4px; background:#FF0000; color:white; cursor:pointer; font-weight:bold; transition:background-color 0.3s, transform 0.2s; }
+button:hover{ background:#cc0000; transform:translateY(-2px); }
+.remove-upload{ background:none; border:none; color:#FF0000; font-weight:bold; float:right; cursor:pointer; transition:color 0.2s; }
+.remove-upload:hover{ color:#cc0000; }
+
+/* --- Drop Zones --- */
+.drop-zone{ border:2px dashed #ccc; border-radius:5px; padding:20px; text-align:center; cursor:pointer; transition:background-color 0.3s, border-color 0.3s, transform 0.2s; }
+.drop-zone.dragover{ background:#f0f0f0; border-color:#FF0000; transform:scale(1.02); }
+
+/* --- Progress Bars --- */
+.progress-container{ position:relative; height:10px; width:100%; background:#ddd; border-radius:5px; overflow:hidden; }
+.progress-bar{ height:100%; width:0%; background:#FF0000; border-radius:5px; transition:width 0.2s ease; }
+.progress-text{ position:absolute; top:-25px; right:0; font-size:12px; color:#333; font-weight:bold; }
+
+/* --- Upload Item --- */
+.upload-item{ border-bottom:1px solid #eee; padding-bottom:20px; margin-bottom:20px; display:flex; flex-direction:column; gap:10px; }
+.drag-handle{ cursor:grab; font-size:18px; color:#888; }
+
+/* --- Upload Previews --- */
+.upload-previews{ border-left:1px solid #eee; padding-left:20px; width:200px; flex-shrink:0; }
+.upload-previews h3{ margin-top:0; font-size:16px; color:#444; }
+#previewList{ list-style:none; padding:0; margin:0; }
+.preview-item{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.preview-item img{ width:40px; height:40px; object-fit:cover; border-radius:4px; }
+.preview-item span{ font-size:14px; color:#222; }
+.preview-item.dragging{ opacity:0.6; }
+
+/* --- Combined Progress --- */
+.overall-progress{ margin-bottom:20px; }
+
+/* --- Responsive --- */
+@media(max-width:768px){
+  .app-container{ flex-direction:column; }
+  .sidebar{ width:100%; display:flex; flex-direction:row; justify-content:space-between; padding:10px; }
+  .sidebar nav ul{ display:flex; flex-direction:row; gap:15px; }
+  .main-content{ width:100%; }
+  .top-bar{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .upload-section{ flex-direction:column; }
+  .drop-zone{ padding:15px; font-size:14px; min-height:60px; }
+  input, textarea, button{ width:100%; }
+  .upload-previews{ width:100%; border-left:none; padding-left:0; margin-top:20px; display:flex; flex-wrap:wrap; gap:10px; }
+}
+</style>
+</head>
+<body>
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>YouTube Studio</h2>
+    <button class="collapse-btn">☰</button>
+    <nav>
+      <ul>
+        <li>Dashboard</li>
+        <li>Content</li>
+        <li>Analytics</li>
+        <li>Settings</li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="top-bar">
+      <h1>Upload Songs</h1>
+      <div class="user-avatar">U</div>
+    </header>
+
+    <section class="upload-section">
+      <div class="card">
+        <div class="overall-progress">
+          <label>Overall Progress</label>
+          <div class="progress-container">
+            <div class="progress-bar" id="combinedProgress"></div>
+            <span class="progress-text" id="combinedProgressText">0%</span>
+          </div>
+        </div>
+
+        <form id="uploadForm">
+          <div id="uploadList">
+            <div class="upload-item">
+              <span class="drag-handle">☰</span>
+              <button type="button" class="remove-upload">✕ Remove</button>
+              <div class="drop-zone" id="songDrop">
+                Drag & Drop Song/Video Here
+                <input type="file" accept="audio/*,video/*" />
+              </div>
+              <div class="drop-zone" id="thumbDrop">
+                Drag & Drop Thumbnail Here
+                <input type="file" accept="image/*" />
+                <img id="thumbPreview" style="display:none; max-width:100px; margin-top:10px;" />
+              </div>
+              <label>Title</label>
+              <input type="text" placeholder="Enter title" />
+              <label>Description</label>
+              <textarea placeholder="Enter description"></textarea>
+              <label>Tags</label>
+              <input type="text" placeholder="Comma-separated tags" />
+              <div class="progress-container">
+                <div class="progress-bar"></div>
+                <span class="progress-text">0%</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="addUpload">Add Another Upload</button>
+          <button type="submit">Publish All</button>
+        </form>
+      </div>
+
+      <!-- Upload Previews Sidebar -->
+      <div class="upload-previews">
+        <h3>Uploads</h3>
+        <ul id="previewList"></ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* --- Sidebar Collapse --- */
+const sidebar=document.querySelector(".sidebar");
+const collapseBtn=document.querySelector(".collapse-btn");
+collapseBtn.addEventListener("click",()=>{sidebar.classList.toggle("collapsed");});
+function handleResize(){if(window.innerWidth<=768){sidebar.classList.add("collapsed");}else{sidebar.classList.remove("collapsed");}}
+window.addEventListener("resize",handleResize);
+window.addEventListener("load",handleResize);
+
+/* --- Drag & Drop --- */
+function setupDropZone(dropZone, preview=null){
+  const input=dropZone.querySelector("input");
+  dropZone.addEventListener("click",()=>input.click());
+  input.addEventListener("change",()=>{
+    if(preview && input.files[0]){
+      const reader=new FileReader();
+      reader.onload=e=>{preview.src=e.target.result; preview.style.display="block"; updatePreviews();}
+      reader.readAsDataURL(input.files[0]);
+    }
+    validateFile(input, dropZone.id.includes('song')?['audio','video']:['image'], dropZone);
+  });
+  dropZone.addEventListener("dragover",e=>{e.preventDefault(); dropZone.classList.add("dragover");});
+  dropZone.addEventListener("dragleave",e=>{e.preventDefault(); dropZone.classList.remove("dragover");});
+  dropZone.addEventListener("drop",e=>{
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    input.files=e.dataTransfer.files;
+    if(preview && input.files[0]){
+      const reader=new FileReader();
+      reader.onload=e=>{preview.src=e.target.result; preview.style.display="block"; updatePreviews();}
+      reader.readAsDataURL(input.files[0]);
+    }
+    validateFile(input, dropZone.id.includes('song')?['audio','video']:['image'], dropZone);
+  });
+}
+
+function validateFile(input, allowedTypes, dropZone){
+  const file=input.files[0];
+  if(!file) return true;
+  const isValid=allowedTypes.includes(file.type.split("/")[0]);
+  if(!isValid){ alert(`Invalid file type! Please upload a ${allowedTypes.join(" or ")} file.`); input.value=""; if(dropZone) dropZone.classList.remove("dragover"); }
+  return isValid;
+}
+
+/* --- Add/Remove/Sortable Upload Items --- */
+const addUploadBtn=document.getElementById("addUpload");
+const uploadList=document.getElementById("uploadList");
+function attachRemoveHandler(item){
+  const removeBtn=item.querySelector(".remove-upload");
+  removeBtn.addEventListener("click",()=>item.remove());
+}
+
+function makeSortable(item){
+  let dragSrcEl=null;
+  item.setAttribute('draggable',true);
+  item.addEventListener('dragstart',function(e){dragSrcEl=this; e.dataTransfer.effectAllowed='move'; this.classList.add('dragging');});
+  item.addEventListener('dragover',function(e){e.preventDefault(); e.dataTransfer.dropEffect='move';});
+  item.addEventListener('drop',function(e){e.stopPropagation(); if(dragSrcEl!==this){const parent=this.parentNode;if([...parent.children].indexOf(dragSrcEl)<[...parent.children].indexOf(this)){parent.insertBefore(dragSrcEl,this.nextSibling);}else{parent.insertBefore(dragSrcEl,this);}}});
+  item.addEventListener('dragend',function(){this.classList.remove('dragging');});
+}
+
+function setupNewUploadItem(clone){
+  setupDropZone(clone.querySelector("#songDrop"), null);
+  setupDropZone(clone.querySelector("#thumbDrop"), clone.querySelector("#thumbPreview"));
+  attachRemoveHandler(clone);
+  makeSortable(clone);
+  clone.querySelector('input[type="text"]').addEventListener("input", updatePreviews);
+  clone.querySelector("#thumbPreview").addEventListener("load", updatePreviews);
+  updatePreviews();
+}
+
+document.querySelectorAll('.upload-item').forEach(item=>{
+  setupDropZone(item.querySelector("#songDrop"));
+  setupDropZone(item.querySelector("#thumbDrop"), item.querySelector("#thumbPreview"));
+  attachRemoveHandler(item);
+  makeSortable(item);
+});
+
+addUploadBtn.addEventListener("click",()=>{
+  const clone = uploadList.children[0].cloneNode(true);
+  clone.querySelectorAll("input,textarea").forEach(input=>input.value="");
+  clone.querySelector(".progress-bar").style.width="0%";
+  clone.querySelector(".progress-text").textContent="0%";
+  clone.querySelector("#thumbPreview").style.display="none";
+  uploadList.appendChild(clone);
+  setupNewUploadItem(clone);
+});
+
+/* --- Update Previews + sortable --- */
+function makePreviewSortable(li){
+  li.setAttribute('draggable', true);
+  li.addEventListener('dragstart', dragStart);
+  li.addEventListener('dragover', dragOver);
+  li.addEventListener('drop', dropPreview);
+  li.addEventListener('dragend', dragEnd);
+}
+let dragSrcPreview=null;
+function dragStart(e){ dragSrcPreview=this; e.dataTransfer.effectAllowed='move'; this.classList.add('dragging'); }
+function dragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function dropPreview(e){ e.stopPropagation(); if(dragSrcPreview!==this){const parent=this.parentNode;if([...parent.children].indexOf(dragSrcPreview)<[...parent.children].indexOf(this)){parent.insertBefore(dragSrcPreview,this.nextSibling);}else{parent.insertBefore(dragSrcPreview,this);}} }
+function dragEnd(e){ this.classList.remove('dragging'); }
+
+function updatePreviews(){
+  const previewList=document.getElementById("previewList");
+  previewList.innerHTML="";
+  document.querySelectorAll(".upload-item").forEach((item,index)=>{
+    const thumb=item.querySelector("#thumbPreview");
+    const title=item.querySelector('input[type="text"]').value || `Upload ${index+1}`;
+    const li=document.createElement("li");
+    li.classList.add("preview-item");
+    li.innerHTML=`<img src="${thumb.src || 'https://via.placeholder.com/40'}" alt="thumb"/><span>${title}</span>`;
+    previewList.appendChild(li);
+    makePreviewSortable(li);
+  });
+}
+
+/* --- Upload Simulation --- */
+const form=document.getElementById("uploadForm");
+const combinedProgressBar=document.getElementById("combinedProgress");
+const combinedProgressText=document.getElementById("combinedProgressText");
+
+form.addEventListener("submit",(e)=>{
+  e.preventDefault();
+  const uploadItems=document.querySelectorAll(".upload-item");
+  const totalItems=uploadItems.length;
+  let progressValues=Array(totalItems).fill(0);
+  uploadItems.forEach((item,index)=>{
+    const progressBar=item.querySelector(".progress-bar");
+    const progressText=item.querySelector(".progress-text");
+    const interval=setInterval(()=>{
+      if(progressValues[index]>=100){ clearInterval(interval); progressText.textContent="100%"; }
+      else{
+        progressValues[index]+=5;
+        progressBar.style.width=progressValues[index]+"%";
+        progressText.textContent=progressValues[index]+"%";
+        const totalProgress=progressValues.reduce((a,b)=>a+b,0)/totalItems;
+        combinedProgressBar.style.width=totalProgress+"%";
+        combinedProgressText.textContent=Math.floor(totalProgress)+"%";
+      }
+    },200);
+  });
+  alert("All uploads simulated!");
+});
+</script>
+</body>
+</html>
