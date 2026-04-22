@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music Distribution Service</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="panel">
+        <h1>Music Distribution Service</h1>
+        <p>
+          Upload once, then manually distribute to YouTube, SoundCloud, Audiomack,
+          Bandcamp, and more with checklist tracking and media storage.
+        </p>
+
+        <form id="releaseForm" class="form">
+          <div class="grid two">
+            <label>
+              Title
+              <input type="text" name="title" required />
+            </label>
+            <label>
+              Artist
+              <input type="text" name="artist" required />
+            </label>
+          </div>
+
+          <label>
+            Description
+            <textarea name="description" rows="3"></textarea>
+          </label>
+
+          <div class="grid two">
+            <label>
+              Release Date
+              <input type="date" name="releaseDate" />
+            </label>
+            <label>
+              Platforms
+              <select id="platforms" multiple>
+                <option>YouTube</option>
+                <option>SoundCloud</option>
+                <option>Audiomack</option>
+                <option>Bandcamp</option>
+                <option>Spotify</option>
+                <option>Apple Music</option>
+              </select>
+              <small>Hold Ctrl/Cmd to select multiple platforms.</small>
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label>
+              Audio File
+              <input type="file" name="audio" accept="audio/*" required />
+            </label>
+            <label>
+              Artwork
+              <input type="file" name="artwork" accept="image/*" />
+            </label>
+          </div>
+
+          <button type="submit">Save Release</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Release Queue</h2>
+        <div id="releaseList" class="release-list"></div>
+      </section>
+    </main>
+
+    <template id="releaseTemplate">
+      <article class="release-card">
+        <div class="release-head">
+          <div>
+            <h3 data-title></h3>
+            <p data-meta></p>
+          </div>
+          <a data-audio target="_blank" rel="noreferrer">Audio</a>
+        </div>
+        <p data-description></p>
+        <div data-artwork-wrap class="artwork-wrap hidden">
+          <img data-artwork alt="Cover art" />
+        </div>
+        <div data-platforms class="platforms"></div>
+      </article>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
